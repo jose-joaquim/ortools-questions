@@ -89,13 +89,17 @@ def print_solution(data, manager, routing, solution):
     print(f"Objective: {solution.ObjectiveValue()}")
     total_distance = 0
     total_load = 0
+    capacity_dim = routing.GetDimensionOrDie("Capacity")
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
         plan_output = "Route for vehicle {}:\n".format(vehicle_id)
         route_distance = 0
         route_load = 0
+
+        capacity_at_loc = []
         while not routing.IsEnd(index):
             node_index = manager.IndexToNode(index)
+            capacity_at_loc.append(solution.Value(capacity_dim.CumulVar(node_index)))
             route_load += data["demands"][node_index]
             plan_output += " {0} Load({1}) -> ".format(node_index, route_load)
             previous_index = index
@@ -103,10 +107,13 @@ def print_solution(data, manager, routing, solution):
             route_distance += routing.GetArcCostForVehicle(
                 previous_index, index, vehicle_id
             )
+
+        capacity_at_loc.append(solution.Value(capacity_dim.CumulVar(index)))
         plan_output += " {0} Load({1})\n".format(manager.IndexToNode(index), route_load)
         plan_output += "Distance of the route: {}m\n".format(route_distance)
         plan_output += "Load of the route: {}\n".format(route_load)
         print(plan_output)
+        print('cap', capacity_at_loc)
         total_distance += route_distance
         total_load += route_load
     print("Total distance of all routes: {}m".format(total_distance))
@@ -163,7 +170,7 @@ def main():
     # The rhs is the total distance of the route of the vehicle
     #########
     routing.AddDimension(transit_callback_index, 0, 100_000_000, True, "Distance")
-    Foo_Constant = 100_000
+    Foo_Constant = 3000
     distance_dimension = routing.GetDimensionOrDie("Distance")
     capacity_dimension = routing.GetDimensionOrDie("Capacity")
     makespan_by_vehicle = []
@@ -196,6 +203,8 @@ def main():
     # Print solution on console.
     if solution:
         print_solution(data, manager, routing, solution)
+        # print('\n foo')
+        # print(" ".join(map(str,[solution.Value(x) for x in makespan_by_vehicle])))
 
 
 if __name__ == "__main__":
