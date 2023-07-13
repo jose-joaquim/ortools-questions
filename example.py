@@ -165,7 +165,7 @@ def main():
     # Approach: loop over vehicle route and add linear expression for every location
     # Problem: route distance not known at the time.
     #########
-    routing.AddDimension(transit_callback_index, 0, 100_000_000, "Distance")
+    routing.AddDimension(transit_callback_index, 0, 100_000_000, True, "Distance")
     distance_dimension = routing.GetDimensionOrDie("Distance")
     capacity_dimension = routing.GetDimensionOrDie("Capacity")
     Foo_Constant = 10
@@ -174,7 +174,7 @@ def main():
         route_distance = distance_dimension.CumulVar(end_vehicle)
         current = routing.Start(vehicle)
         while not routing.IsEnd(current):
-            curr_index = manager.NodeToIndex(currrent)
+            curr_index = manager.NodeToIndex(current)
             routing.solver().Add(
                 Foo_Constant * capacity_dimension.CumulVar(curr_index) <= route_distance
             )
