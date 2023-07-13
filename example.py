@@ -166,11 +166,11 @@ def main():
     # Goal:
     # Set an upper-bound on the Capacity dimension at each
     # location using a linear expression.
-    # The lhs is in the form constant - capacity_dimension.CumulVar(index);
-    # The rhs is the total distance of the route of the vehicle
+    # The lhs is in the capacity_dimension.CumulVar(index);
+    # The rhs is the Foo_Constant - the makespan distance of the route of the vehicle
     #########
     routing.AddDimension(transit_callback_index, 0, 100_000_000, True, "Distance")
-    Foo_Constant = 3000
+    Foo_Constant = 2000
     distance_dimension = routing.GetDimensionOrDie("Distance")
     capacity_dimension = routing.GetDimensionOrDie("Capacity")
     makespan_by_vehicle = []
