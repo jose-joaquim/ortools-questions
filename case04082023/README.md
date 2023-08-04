@@ -9,9 +9,9 @@ I have N nodes 0,...,N and C checkpoints. They are labeled as follows:
 
 That being said, the adjacency rules are:
 
-From the depot, I can go to nodes [1, k].
-From nodes [1, k], I can go to nodes [1, k + r]
-From nodes [k, k + r], I must go to nodes (checkpoints) [k + r + 1, k + r + c]
+- From the depot, I can go to nodes [1, k].
+- From nodes [1, k], I can go to nodes [1, k + r]
+- From nodes [k, k + r], I must go to nodes (checkpoints) [k + r + 1, k + r + c]
 
 The time_matrix figure reports the time travel between the nodes. The values are reported as follows:
 
