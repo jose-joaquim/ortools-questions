@@ -12,16 +12,12 @@ def print_solution(data, manager, routing, solution, print_formatted=False):
 
     time_global = routing.GetDimensionOrDie("GlobalTime")
     time_reload = routing.GetDimensionOrDie("TimeReload")
-    distance_global = routing.GetDimensionOrDie("GlobalDistance")
-    distance_reload = routing.GetDimensionOrDie("DistanceReload")
     landing_dimension = routing.GetDimensionOrDie("LandingReload")
     load_dimension = routing.GetDimensionOrDie("Load")
 
     dimensions = [
         time_global,
-        distance_global,
         time_reload,
-        distance_reload,
         load_dimension,
         landing_dimension,
     ]
@@ -38,9 +34,7 @@ def print_solution(data, manager, routing, solution, print_formatted=False):
                 "node",
                 "node_id",
                 "global time",
-                "global distance",
                 "reload time",
-                "reload distance",
                 "load",
                 "landing",
             ]
@@ -129,39 +123,12 @@ def location_capacity_constraint(data, manager, routing):
         load_dimension.SetCumulVarSoftUpperBound(
             i_index,
             min(payload, data["MaxPassengersCardinality"] * data["PassengerWeight"]),
-            inf * 2,
+            inf * 100_000,
         )
 
 
 def dimensions(data, manager, routing):
     indexes_l = data["AllIndexes"]
-
-    def distance_callback(from_index, to_index):
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-
-        return data["DistanceMatrix"][from_node][to_node]
-
-    def distance_callback_reload(from_index, to_index):
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-
-        # From a checkpoint
-        if from_node > data["FirstCheckPoint"]:
-            return -500
-
-        return distance_callback(from_index, to_index)
-
-    transit_callback_index_reload = routing.RegisterTransitCallback(
-        distance_callback_reload
-    )
-    transit_callback_index = routing.RegisterTransitCallback(distance_callback)
-    routing.AddDimension(transit_callback_index, 0, inf, True, "GlobalDistance")
-    routing.AddDimension(
-        transit_callback_index_reload, inf, inf, True, "DistanceReload"
-    )
-    distance_dimension = routing.GetDimensionOrDie("GlobalDistance")
-    distance_dimension.SetGlobalSpanCostCoefficient(10)
 
     def time_callback(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
@@ -205,8 +172,11 @@ def dimensions(data, manager, routing):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
 
-        # From a checkpoint OR from depot
-        if from_node > data["FirstCheckPoint"] or from_node == 0:
+        if from_node == 0:
+            return 0
+
+        # From a checkpoint
+        if from_node > data["FirstCheckPoint"]:
             return -500
 
         if indexes_l[from_node][0] != indexes_l[to_node][0]:
@@ -223,7 +193,8 @@ def dimensions(data, manager, routing):
         "LandingReload",
     )
 
-    routing.AddConstantDimension(1, 100_000_00, True, "__visited__")
+    land_dim = routing.GetDimensionOrDie("LandingReload")
+    land_dim.SetGlobalSpanCostCoefficient(100)
 
 
 def dropping(data, manager, routing):
@@ -259,14 +230,13 @@ def pickups_deliveries(data, manager, routing):
 
 def adjust_reload_stuff(data, manager, routing):
     time_dim = routing.GetDimensionOrDie("TimeReload")
-    distance_dim = routing.GetDimensionOrDie("DistanceReload")
     landing_dim = routing.GetDimensionOrDie("LandingReload")
     load_dim = routing.GetDimensionOrDie("Load")
     for i in range(data["FirstCheckPoint"]):
         i_index = manager.NodeToIndex(i)
         time_dim.SlackVar(i_index).SetValue(0)
-        distance_dim.SlackVar(i_index).SetValue(0)
         load_dim.SlackVar(i_index).SetValue(0)
+        landing_dim.SlackVar(i_index).SetValue(0)
 
     for l in range(data["FirstCheckPoint"], len(data["TimeMatrix"])):
         l_index = manager.NodeToIndex(l)
@@ -294,6 +264,7 @@ def main():
     dimensions(data, manager, routing)
     pickups_deliveries(data, manager, routing)
     dropping(data, manager, routing)
+    location_capacity_constraint(data, manager, routing)
     adjust_reload_stuff(data, manager, routing)
 
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
@@ -305,7 +276,7 @@ def main():
     )
 
     search_parameters.log_search = False
-    search_parameters.time_limit.seconds = 600
+    search_parameters.time_limit.seconds = 60
     # search_parameters.use_cp_sat = True
 
     initial = [
